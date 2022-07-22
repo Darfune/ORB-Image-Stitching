@@ -118,14 +118,14 @@ def fast_score(image,x,y,thres):
         else: bmax = b
 
         if bmin >= bmax -1 or bmin == bmax:
-            return bmin
+            return bmin * 0.00001
         
         b = (bmax + bmin) / 2
 
 
 def fast_algorithm (image,thres = 80,maxpoints = 50):
     temp_keypoints = fast_detect(image,thres)
-
+    best_scores = []
     if len(temp_keypoints) > 50:
         keypoints = []
         while len(keypoints) < maxpoints:
@@ -134,13 +134,15 @@ def fast_algorithm (image,thres = 80,maxpoints = 50):
                 if temp_keypoint[1] > max_score:
                     max_score = temp_keypoint[1]
                     biggest_score = temp_keypoint
+            
                     
             keypoints.append(biggest_score[0])
+            best_scores.append(biggest_score[1])
             temp_keypoints.remove(biggest_score)
-        return np.array(keypoints)
+        return np.array(keypoints), best_scores
     else: 
         keypoints = []
         for temp_keypoint in temp_keypoints:
                 keypoints.append(temp_keypoint[0])
-        
-        return np.array(keypoints)
+                best_scores.append(temp_keypoint[1])
+        return np.array(keypoints), best_scores
