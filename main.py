@@ -12,6 +12,58 @@ from tempfile import TemporaryFile
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import imutils
+import time
+from scipy.spatial.distance import cdist
+from skimage.feature import plot_matches
+
+def match(descriptors1, descriptors2, max_distance=np.inf, cross_check=True, distance_ratio=None):
+    distances = cdist(descriptors1, descriptors2, metric='hamming')   # distances.shape: [len(d1), len(d2)]
+    
+    indices1 = np.arange(descriptors1.shape[0])     # [0, 1, 2, 3, 4, 5, 6, 7, ..., len(d1)] "indices of d1"
+    indices2 = np.argmin(distances, axis=1)         # [12, 465, 23, 111, 123, 45, 67, 2, 265, ..., len(d1)] "list of the indices of d2 points that are closest to d1 points"
+                                                    # Each d1 point has a d2 point that is the most close to it.
+    if cross_check:
+        '''
+        Cross check idea:
+        what d1 matches with in d2 [indices2], should be equal to 
+        what that point in d2 matches with in d1 [matches1]
+        '''
+        matches1 = np.argmin(distances, axis=0)     # [15, 37, 283, ..., len(d2)] "list of d1 points closest to d2 points"
+                                                    # Each d2 point has a d1 point that is closest to it.
+        # indices2 is the forward matches [d1 -> d2], while matches1 is the backward matches [d2 -> d1].
+        mask = indices1 == matches1[indices2]       # len(mask) = len(d1)
+        # we are basically asking does this point in d1 matches with a point in d2 that is also matching to the same point in d1 ?
+        indices1 = indices1[mask]
+        indices2 = indices2[mask]
+    
+    if max_distance < np.inf:
+        mask = distances[indices1, indices2] < max_distance
+        indices1 = indices1[mask]
+        indices2 = indices2[mask]
+
+    if distance_ratio is not None:
+        '''
+        the idea of distance_ratio is to use this ratio to remove ambigous matches.
+        ambigous matches: matches where the closest match distance is similar to the second closest match distance
+                          basically, the algorithm is confused about 2 points, and is not sure enough with the closest match.
+        solution: if the ratio between the distance of the closest match and
+                  that of the second closest match is more than the defined "distance_ratio",
+                  we remove this match entirly. if not, we leave it as is.
+        '''
+        modified_dist = distances
+        fc = np.min(modified_dist[indices1,:], axis=1)
+        modified_dist[indices1, indices2] = np.inf
+        fs = np.min(modified_dist[indices1,:], axis=1)
+        mask = fc/fs <= 0.5
+        indices1 = indices1[mask]
+        indices2 = indices2[mask]
+
+    # sort matches using distances
+    dist = distances[indices1, indices2]
+    sorted_indices = dist.argsort()
+
+    matches = np.column_stack((indices1[sorted_indices], indices2[sorted_indices]))
+    return matches
 
 
 if __name__ == '__main__':
@@ -33,7 +85,7 @@ if __name__ == '__main__':
 
     ds1 = []
     orb = cv2.ORB_create(50)
-
+    brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
     all_keypoints = []
     all_descriptors = []
     image_counter = 0
@@ -59,28 +111,38 @@ if __name__ == '__main__':
                 image_keypoints = image_keypoints + (cv2.KeyPoint(x = float(keypoints[i][0]),y = float(keypoints[i][1]),size = 7, angle = orientations[1], response = scores[i], octave = octave_of_image, class_id = -1),)
 
             octave_of_image = octave_of_image + 1
-        image_keypoints, image_descriptors = orb.compute(image, image_keypoints)
+        # image_keypoints, image_descriptors = brief.compute(image, image_keypoints)
+        # print(keypoints)
+        image_descriptors = brief_descriptor_function(image, keypoints, orientations)
+        
+
 
         all_keypoints.append(image_keypoints)
         all_descriptors.append(image_descriptors)
+    matches = match(all_descriptors[0],all_descriptors[1])
+
+    fig = plt.figure(figsize=(20.0, 30.0))
+    ax = fig.add_subplot(1,1,1)
+    plot_matches(ax, images_1[0], images_1[1], np.flip(all_descriptors[0], 1), np.flip(all_descriptors[1], 1), matches[:20], 
+                alignment='horizontal', only_matches=True)
 
 
 
-    ratio = 0.85
-    min_match = 10
 
-    matcher = cv2.BFMatcher()
-    raw_matches = matcher.knnMatch(all_descriptors[0], all_descriptors[1], k=2)
-    good_points = []
-    good_matches = []
-    for m1, m2 in raw_matches:
-        if m1.distance < ratio * m2.distance:
-            good_points.append((m1.trainIdx, m1.queryIdx))
-            good_matches.append([m1])
-    matches = cv2.drawMatchesKnn(images_1[0], all_keypoints[0], images_1[1], all_keypoints[1], good_matches, None, flags=2)
-    cv2.imshow("Matches",matches)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    
+
+    # matcher = cv2.BFMatcher()
+    # raw_matches = matcher.knnMatch(all_descriptors[0], all_descriptors[1], k=2)
+    # good_points = []
+    # good_matches = []
+    # for m1, m2 in raw_matches:
+    #     if m1.distance < ratio * m2.distance:
+    #         good_points.append((m1.trainIdx, m1.queryIdx))
+    #         good_matches.append([m1])
+    # matches = cv2.drawMatchesKnn(images_1[0], all_keypoints[0], images_1[1], all_keypoints[1], good_matches, None, flags=2)
+    # cv2.imshow("Matches",matches)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     
 
