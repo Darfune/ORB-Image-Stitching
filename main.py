@@ -14,28 +14,6 @@ import matplotlib.image as mpimg
 import imutils
 
 
-
-def create_mask(img1,img2,version):
-    height_img1 = img1.shape[0]
-    width_img1 = img1.shape[1]
-    width_img2 = img2.shape[1]
-    height_panorama = height_img1
-    width_panorama = width_img1 + width_img2
-    offset = int(smoothing_window_size / 2)
-    barrier = img1.shape[1] - int(smoothing_window_size / 2)
-    mask = np.zeros((height_panorama, width_panorama))
-    if version== 'left_image':
-        mask[:, barrier - offset:barrier + offset ] = np.tile(np.linspace(1, 0, 2 * offset ).T, (height_panorama, 1))
-        mask[:, :barrier - offset] = 1
-    else:
-
-        mask[:, barrier - offset :barrier + offset ] = np.tile(np.linspace(0, 1, 2 * offset ).T, (height_panorama, 1))
-        mask[:, barrier + offset:] = 1
-    return cv2.merge([mask, mask, mask])
-
-
-
-
 if __name__ == '__main__':
     os.system('clear')
 
@@ -62,7 +40,6 @@ if __name__ == '__main__':
 
     for image in images_1:
         image_counter = image_counter + 1
-        print("Image counter: ", image_counter)
         image_pyramid_gaussian = []
         image_pyramid_gaussian.append(image)
         height, width = image.shape
@@ -74,8 +51,8 @@ if __name__ == '__main__':
         image_keypoints = ()
         octave_of_image = 0
         for current_image in image_pyramid_gaussian:
+            print("Image : ", image_counter, " octave of image : ", octave_of_image)
             keypoints, scores = fast_algorithm(current_image,80, 50)
-
             orientations = corner_orientations(current_image,keypoints)
             keypoints_list_temp = ()
             for i in range(0,len(keypoints)):
@@ -83,11 +60,6 @@ if __name__ == '__main__':
 
             octave_of_image = octave_of_image + 1
         image_keypoints, image_descriptors = orb.compute(image, image_keypoints)
-
-        # kp_image = cv2.drawKeypoints(image, image_keypoints, None)
-        # cv2.imshow("Keypoints",kp_image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
 
         all_keypoints.append(image_keypoints)
         all_descriptors.append(image_descriptors)
@@ -110,61 +82,7 @@ if __name__ == '__main__':
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    if len(good_points) > min_match:
-        image1_kp = np.float32(
-            [all_keypoints[0][i].pt for (_, i) in good_points])
-        image2_kp = np.float32(
-            [all_keypoints[1][i].pt for (i, _) in good_points])
-        H, status = cv2.findHomography(image2_kp, image1_kp, cv2.RANSAC, 5.0)      # RANSAC
-
-
-    smoothing_window_size = 32
-    # H = registration(img1,img2)
-    height_img1 = images_1[0].shape[0]
-    width_img1 = images_1[0].shape[1]
-    width_img2 = images_1[1].shape[1]
-    height_panorama = height_img1
-    width_panorama = width_img1 + width_img2
-
-    panorama1 = np.zeros((height_panorama, width_panorama, 3))
-    mask1 = create_mask(images_1[0], images_1[1], version='right_image')
-    panorama1[0:images_1[0].shape[0], 0:images_1[0].shape[1], :] = images_1[0]
-    panorama1 *= mask1
-    mask2 = create_mask(images_1[0],images_1[1],version='left_image')
-    panorama2 = cv2.warpPerspective(images_1[1], H, (width_panorama, height_panorama))*mask2
-    result = panorama1 + panorama2
-
-    rows, cols = np.where(result[:, :, 0] != 0)
-    min_row, max_row = min(rows), max(rows) + 1
-    min_col, max_col = min(cols), max(cols) + 1
-    final_result = result[min_row:max_row, min_col:max_col, :]
-
-    test = cv2.warpPerspective(images_1[1], H, (width_panorama, height_panorama))
-    plt.figure(figsize=(15,10))
-    plt.imshow(test/255.0)
-    plt.figure(figsize=(15,10))
-    plt.imshow(panorama1/255.0)
-    plt.figure(figsize=(15,10))
-    plt.imshow(panorama2/255.0)
-    plt.figure(figsize=(15,10))
-    plt.imshow(final_result/255.0)
-    stitcher = cv2.createStitcher() if imutils.is_cv3() else cv2.Stitcher_create()
-    (status, stitched) = stitcher.stitch(images_1)
-    plt.figure(figsize=(15,10))
-    plt.imshow(stitched)
-    (status_1, stitched_1) = stitcher.stitch([images_1[0], images_1[1]])
-    plt.figure(figsize=(15,10))
-    plt.imshow(stitched_1)
-        # kp, des = orb.detectAndCompute(image,None)
-        # kp_image1 = cv2.drawKeypoints(image, keypoints_list, None)
-        # cv2.imshow("Keypoints",kp_image1)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-            # descriptor = brief_descriptor_function(current_image,keypoints,orientations,mode = 'uniform',n = 128)
-            # # ds1.append(descriptor)
-            # print(descriptor)
-            # exit(0)
-        # print(image_gaussian_pyramid_orientations)
+    
 
         
 
