@@ -15,55 +15,8 @@ import imutils
 import time
 from scipy.spatial.distance import cdist
 from skimage.feature import plot_matches
-
-def match(descriptors1, descriptors2, max_distance=np.inf, cross_check=True, distance_ratio=None):
-    distances = cdist(descriptors1, descriptors2, metric='hamming')   # distances.shape: [len(d1), len(d2)]
-    
-    indices1 = np.arange(descriptors1.shape[0])     # [0, 1, 2, 3, 4, 5, 6, 7, ..., len(d1)] "indices of d1"
-    indices2 = np.argmin(distances, axis=1)         # [12, 465, 23, 111, 123, 45, 67, 2, 265, ..., len(d1)] "list of the indices of d2 points that are closest to d1 points"
-                                                    # Each d1 point has a d2 point that is the most close to it.
-    if cross_check:
-        '''
-        Cross check idea:
-        what d1 matches with in d2 [indices2], should be equal to 
-        what that point in d2 matches with in d1 [matches1]
-        '''
-        matches1 = np.argmin(distances, axis=0)     # [15, 37, 283, ..., len(d2)] "list of d1 points closest to d2 points"
-                                                    # Each d2 point has a d1 point that is closest to it.
-        # indices2 is the forward matches [d1 -> d2], while matches1 is the backward matches [d2 -> d1].
-        mask = indices1 == matches1[indices2]       # len(mask) = len(d1)
-        # we are basically asking does this point in d1 matches with a point in d2 that is also matching to the same point in d1 ?
-        indices1 = indices1[mask]
-        indices2 = indices2[mask]
-    
-    if max_distance < np.inf:
-        mask = distances[indices1, indices2] < max_distance
-        indices1 = indices1[mask]
-        indices2 = indices2[mask]
-
-    if distance_ratio is not None:
-        '''
-        the idea of distance_ratio is to use this ratio to remove ambigous matches.
-        ambigous matches: matches where the closest match distance is similar to the second closest match distance
-                          basically, the algorithm is confused about 2 points, and is not sure enough with the closest match.
-        solution: if the ratio between the distance of the closest match and
-                  that of the second closest match is more than the defined "distance_ratio",
-                  we remove this match entirly. if not, we leave it as is.
-        '''
-        modified_dist = distances
-        fc = np.min(modified_dist[indices1,:], axis=1)
-        modified_dist[indices1, indices2] = np.inf
-        fs = np.min(modified_dist[indices1,:], axis=1)
-        mask = fc/fs <= 0.5
-        indices1 = indices1[mask]
-        indices2 = indices2[mask]
-
-    # sort matches using distances
-    dist = distances[indices1, indices2]
-    sorted_indices = dist.argsort()
-
-    matches = np.column_stack((indices1[sorted_indices], indices2[sorted_indices]))
-    return matches
+from find_matches import match
+from best_keypoints import find_best_keypoints
 
 
 if __name__ == '__main__':
@@ -82,19 +35,21 @@ if __name__ == '__main__':
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         images_1.append(img)
-
+        
     ds1 = []
     orb = cv2.ORB_create(50)
     brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
     all_keypoints = []
     all_descriptors = []
     image_counter = 0
-
+    all_scale_keypoints = []
+    all_scale_descriptors = []
     for image in images_1:
         image_counter = image_counter + 1
         image_pyramid_gaussian = []
         image_pyramid_gaussian.append(image)
         height, width = image.shape
+        positions = []
         for i in range(1,4):
             new_height = math.floor(height/i)
             new_width = math.floor(width/i)
@@ -104,27 +59,37 @@ if __name__ == '__main__':
         octave_of_image = 0
         for current_image in image_pyramid_gaussian:
             print("Image : ", image_counter, " octave of image : ", octave_of_image)
-            keypoints, scores = fast_algorithm(current_image,80, 50)
+            keypoints, scores = fast_algorithm(current_image,80)
             orientations = corner_orientations(current_image,keypoints)
             keypoints_list_temp = ()
             for i in range(0,len(keypoints)):
-                image_keypoints = image_keypoints + (cv2.KeyPoint(x = float(keypoints[i][0]),y = float(keypoints[i][1]),size = 7, angle = orientations[1], response = scores[i], octave = octave_of_image, class_id = -1),)
+                # positions.append((float(keypoints[i][0]),float(keypoints[i][1])))
+                image_keypoints = image_keypoints + (cv2.KeyPoint(x = float(keypoints[i][0]),y = float(keypoints[i][1]),size = 7, angle = orientations[i], response = scores[i], octave = octave_of_image, class_id = -1),)
 
             octave_of_image = octave_of_image + 1
         # image_keypoints, image_descriptors = brief.compute(image, image_keypoints)
         # print(keypoints)
-        image_descriptors = brief_descriptor_function(image, keypoints, orientations)
-        
 
+
+        image_keypoints = find_best_keypoints(image_keypoints,50)
+        
+        image_descriptors = brief_descriptor_function(image, image_keypoints)
+
+        # scale_keypoints = np.vstack(positions)
+        # scale_descriptors = np.vstack(image_descriptors)
 
         all_keypoints.append(image_keypoints)
         all_descriptors.append(image_descriptors)
-    matches = match(all_descriptors[0],all_descriptors[1])
+        # all_scale_keypoints.append(scale_keypoints)
 
-    fig = plt.figure(figsize=(20.0, 30.0))
-    ax = fig.add_subplot(1,1,1)
-    plot_matches(ax, images_1[0], images_1[1], np.flip(all_descriptors[0], 1), np.flip(all_descriptors[1], 1), matches[:20], 
-                alignment='horizontal', only_matches=True)
+    match(images_1[0],images_1[1],all_keypoints[0],all_keypoints[1], all_descriptors[0],all_descriptors[1])
+
+    # matches = match(np.vstack(all_descriptors[0]),np.vstack(all_descriptors[1]))
+
+    # fig = plt.figure(figsize=(20.0, 30.0))
+    # ax = fig.add_subplot(1,1,1)
+    # plot_matches(ax, images_1[0], images_1[1], np.flip(all_scale_keypoints[0], 1), np.flip(all_scale_keypoints[1], 1), matches[:20], 
+    #             alignment='horizontal', only_matches=True)
 
 
 

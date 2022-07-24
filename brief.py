@@ -1,9 +1,16 @@
 import numpy as np
 from scipy.signal import convolve2d
 
-def brief_descriptor_function(img, keypoints, orientations=None, n=256, patch_size=9, sigma=1, mode='uniform', sample_seed=42):
+def brief_descriptor_function(img, keypoints_object, n=256, patch_size=9, sigma=1, mode='uniform', sample_seed=42):
+
+    orientations = []
+    keypoints = []
+    for kp in keypoints_object:
+        orientations.append(kp.angle)
+        keypoints.append((kp.pt))
 
     keypoints = np.array(keypoints)
+    orientations = np.array(orientations)
     random = np.random.RandomState(seed=sample_seed)
 
     # kernel = np.array([[1,2,1],
@@ -42,9 +49,9 @@ def brief_descriptor_function(img, keypoints, orientations=None, n=256, patch_si
             & ((distance - 1) < keypoints[:, 1])
             & (keypoints[:, 1] < (rows - distance + 1)))
 
-    keypoints = np.array(keypoints[mask], dtype=np.intp, copy=False)
-    orientations = np.array(orientations[mask], copy=False)
-    descriptors = np.zeros((keypoints.shape[0], n), dtype=bool)
+    keypoints = np.array(keypoints[mask], dtype=np.intp, copy=0)
+    orientations = np.array(orientations[mask], copy=0)
+    descriptors = np.zeros((keypoints.shape[0], n), dtype=int)
 
     for i in range(descriptors.shape[0]):
         angle = orientations[i]
@@ -69,5 +76,22 @@ def brief_descriptor_function(img, keypoints, orientations=None, n=256, patch_si
             spc1 = round(cos_theta*pr1 - sin_theta*pc1)
 
             if img[kr + spr0, kc + spc0] < img[kr + spr1, kc + spc1]:
-                descriptors[i, p] = True
-    return descriptors
+                descriptors[i, p] = 1
+    
+    end_descriptors =  bits_to_bytes(descriptors)
+
+    return end_descriptors
+
+def bits_to_bytes(desc):
+    descriptors = ()
+    for byte in desc:
+        descriptor = []
+        for bit_pair in range(0,32):
+            desc_byte = 0
+            for bit in range(0,8):
+                desc_byte += (byte[bit + bit_pair] * (2 ** bit))
+            descriptor.append(desc_byte)
+        descriptors = descriptors + (descriptor,)
+        
+    return np.array(descriptors)
+    
