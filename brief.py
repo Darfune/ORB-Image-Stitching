@@ -93,5 +93,5 @@ def bits_to_bytes(desc):
             descriptor.append(desc_byte)
         descriptors = descriptors + (descriptor,)
         
-    return np.array(descriptors)
+    return np.array(descriptors).astype(np.uint8)
     

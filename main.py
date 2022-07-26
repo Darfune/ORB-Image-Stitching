@@ -1,3 +1,4 @@
+from re import S
 from statistics import mode
 from urllib import response
 import numpy as np
@@ -27,17 +28,22 @@ if __name__ == '__main__':
     path_3 = "images/set_3/"
     DOWNSCALE = 2
     N_LAYERS = 4
-
+    percent = 0.000000000001
     images_1 = []
 
     for i in os.listdir(path_1):
         image_path = path_1 + i
         img = cv2.imread(image_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # img = cv2.cvtColor(img)
         images_1.append(img)
         
     ds1 = []
-    orb = cv2.ORB_create(50)
+    # orb = cv2.ORB_create(50)
+    # kp, ds = orb.detectAndCompute(images_1[0], None)
+    # #print all response for kp
+    # for i in kp:
+    #     print(i.response)
+    
     brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
     all_keypoints = []
     all_descriptors = []
@@ -47,14 +53,15 @@ if __name__ == '__main__':
     for image in images_1:
         image_counter = image_counter + 1
         image_pyramid_gaussian = []
-        image_pyramid_gaussian.append(image)
-        height, width = image.shape
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image_pyramid_gaussian.append(gray)
+        height, width = gray.shape
         positions = []
         for i in range(1,4):
             new_height = math.floor(height/i)
             new_width = math.floor(width/i)
             # image_pyramid_gaussian.append(cv2.GaussianBlur(cv2.resize(cv2.resize(image,(new_height,new_width)),(height,width)),(5,5),0))
-            image_pyramid_gaussian.append(cv2.resize(cv2.resize(image,(new_height,new_width)),(height,width)))
+            image_pyramid_gaussian.append(cv2.resize(cv2.resize(gray,(new_height,new_width)),(height,width)))
         image_keypoints = ()
         octave_of_image = 0
         for current_image in image_pyramid_gaussian:
@@ -64,6 +71,7 @@ if __name__ == '__main__':
             keypoints_list_temp = ()
             for i in range(0,len(keypoints)):
                 # positions.append((float(keypoints[i][0]),float(keypoints[i][1])))
+                
                 image_keypoints = image_keypoints + (cv2.KeyPoint(x = float(keypoints[i][0]),y = float(keypoints[i][1]),size = 7, angle = orientations[i], response = scores[i], octave = octave_of_image, class_id = -1),)
 
             octave_of_image = octave_of_image + 1
@@ -73,7 +81,7 @@ if __name__ == '__main__':
 
         image_keypoints = find_best_keypoints(image_keypoints,50)
         
-        image_descriptors = brief_descriptor_function(image, image_keypoints)
+        image_descriptors = brief_descriptor_function(gray, image_keypoints)
 
         # scale_keypoints = np.vstack(positions)
         # scale_descriptors = np.vstack(image_descriptors)
