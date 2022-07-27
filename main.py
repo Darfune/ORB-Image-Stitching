@@ -1,6 +1,8 @@
+from multiprocessing.connection import wait
 from re import S
 from statistics import mode
 from urllib import response
+from cv2 import ORB_create
 import numpy as np
 import cv2
 import os
@@ -31,6 +33,7 @@ if __name__ == '__main__':
     percent = 0.000000000001
     images_1 = []
 
+
     for i in os.listdir(path_1):
         image_path = path_1 + i
         img = cv2.imread(image_path)
@@ -38,12 +41,7 @@ if __name__ == '__main__':
         images_1.append(img)
         
     ds1 = []
-    # orb = cv2.ORB_create(50)
-    # kp, ds = orb.detectAndCompute(images_1[0], None)
-    # #print all response for kp
-    # for i in kp:
-    #     print(i.response)
-    
+
     brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
     all_keypoints = []
     all_descriptors = []
@@ -58,10 +56,9 @@ if __name__ == '__main__':
         height, width = gray.shape
         positions = []
         for i in range(1,4):
-            new_height = math.floor(height/i)
-            new_width = math.floor(width/i)
+
             # image_pyramid_gaussian.append(cv2.GaussianBlur(cv2.resize(cv2.resize(image,(new_height,new_width)),(height,width)),(5,5),0))
-            image_pyramid_gaussian.append(cv2.resize(cv2.resize(gray,(new_height,new_width)),(height,width)))
+            image_pyramid_gaussian.append(cv2.pyrDown(gray))
         image_keypoints = ()
         octave_of_image = 0
         for current_image in image_pyramid_gaussian:
@@ -72,8 +69,11 @@ if __name__ == '__main__':
             for i in range(0,len(keypoints)):
                 # positions.append((float(keypoints[i][0]),float(keypoints[i][1])))
                 
-                image_keypoints = image_keypoints + (cv2.KeyPoint(x = float(keypoints[i][0]),y = float(keypoints[i][1]),size = 7, angle = orientations[i], response = scores[i], octave = octave_of_image, class_id = -1),)
-
+                image_keypoints = image_keypoints + (cv2.KeyPoint(x = float(keypoints[i][0]),y = float(keypoints[i][1]),size = 7 + (1.2 * octave_of_image), angle = orientations[i], response = scores[i], octave = octave_of_image, class_id = -1),)
+            keypoint_image = cv2.drawKeypoints(current_image,image_keypoints,None,(0,255,0),4)
+            cv2.imshow("Image : ", keypoint_image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
             octave_of_image = octave_of_image + 1
         # image_keypoints, image_descriptors = brief.compute(image, image_keypoints)
         # print(keypoints)
