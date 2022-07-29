@@ -1,26 +1,23 @@
 import numpy as np
+import cv2
 
 def sortScore(val):
     return val[2]
 
-def N_best_points(harris_corners, fast_keypoints, N):
+def N_best_points(harris_corners, fast_keypoints):
     harris_corners.sort(key=sortScore, reverse=True)
     top_N_kps = []
     top_N_scores = []
 
-    for fs_kp in fast_keypoints:
-        for hr_kp in harris_corners:
+    for hr_kp in harris_corners:
+        for fs_kp in fast_keypoints:
                 if hr_kp[0] == fs_kp[0] and hr_kp[1] == fs_kp[1]:
                     top_N_kps.append(fs_kp)
                     top_N_scores.append(hr_kp[2])
                     break
-    top_N_kps = top_N_kps[:N]
-    top_N_scores = top_N_scores[:N]
-    # print("Top 50 points: ",top_N_kps)
-
     return top_N_kps, top_N_scores
 
-def find_harris_corners(input_img, threshold, fast_keypoints, best_corners):
+def find_harris_corners(input_img, threshold, fast_keypoints):
     
     corner_list = []
     
@@ -64,8 +61,6 @@ def find_harris_corners(input_img, threshold, fast_keypoints, best_corners):
             
             if r > threshold:
                 corner_list.append([x, y, r])
+            
 
-    #call the function to find the best_corners harris corners
-    #return the best N corners
-    return N_best_points(corner_list, fast_keypoints, best_corners)
-    # return N_best_points(corner_list, fast_keypoints, best_corners)
+    return N_best_points(corner_list, fast_keypoints)
