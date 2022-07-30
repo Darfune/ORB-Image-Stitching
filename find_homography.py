@@ -16,8 +16,8 @@ def homography_stitching(keypoints_train_img, keypoints_query_img, matches, repr
         points_query = np.float32([keypoints_query_img[m.trainIdx] for m in matches])
         
         # Calculate the homography between the sets of points
-        (H, status) = cv2.findHomography( points_query, points_train, cv2.RANSAC, reprojThresh)
+        (H, mask) = cv2.findHomography( points_query, points_train, cv2.RANSAC, 5)
 
-        return (matches, H, status)
+        return (matches, H, mask)
     else:
         return None

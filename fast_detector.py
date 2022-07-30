@@ -4,6 +4,7 @@ from harris_score import find_harris_corners
 import cv2
 import time
 def fast_detect(image, thres):
+    print("in fast_detect")
     height, width = image.shape
     keypoints = []
 

@@ -15,10 +15,11 @@ def N_best_points(harris_corners, fast_keypoints):
                     top_N_kps.append(fs_kp)
                     top_N_scores.append(hr_kp[2])
                     break
+    print("matched: ", len(top_N_kps))
     return top_N_kps, top_N_scores
 
 def find_harris_corners(input_img, threshold, fast_keypoints):
-    
+    print("in find_harris_corners")
     corner_list = []
     
     offset = int(5/2)
@@ -62,5 +63,5 @@ def find_harris_corners(input_img, threshold, fast_keypoints):
             if r > threshold:
                 corner_list.append([x, y, r])
             
-
+    print("harris corners found: ", len(corner_list))
     return N_best_points(corner_list, fast_keypoints)

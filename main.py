@@ -1,5 +1,6 @@
 from concurrent.futures import thread
-from multiprocessing.connection import wait
+import multiprocessing
+from multiprocessing import process
 from random import gauss
 from re import S
 import re
@@ -26,7 +27,7 @@ from find_matches import match
 from best_keypoints import find_best_keypoints
 from harris_score import find_harris_corners
 from find_homography import homography_stitching
-
+import concurrent.futures
 
 def warp_image(image, homography):
     """Warps 'image' by 'homography'
@@ -73,9 +74,35 @@ def warp_image(image, homography):
     return warped, (int(xmin), int(ymin))   
 
 
-
 def sortScore(val):
     return val[2]
+all_keypoints = []
+
+def keypoint_details_processing(pyramid_details):
+    octave = pyramid_details[0]
+    threshold = pyramid_details[1]
+    image = pyramid_details[2]
+    
+    keypoints_of_image = fast_detect(image, threshold)
+    keypoints_of_image, scores_of_layer = find_harris_corners(image,1000.0,keypoints_of_image)
+    orientations = corner_orientations(image,keypoints_of_image)
+    return keypoints_of_image, scores_of_layer, orientations, octave
+
+
+def trim(frame):
+    #crop top
+    if not np.sum(frame[0]):
+        return trim(frame[1:])
+    #crop top
+    if not np.sum(frame[-1]):
+        return trim(frame[:-2])
+    #crop top
+    if not np.sum(frame[:,0]):
+        return trim(frame[:,1:])
+    #crop top
+    if not np.sum(frame[:,-1]):
+        return trim(frame[:,:-2])
+    return frame
 
 if __name__ == '__main__':
     os.system('clear')
@@ -84,14 +111,15 @@ if __name__ == '__main__':
     path_2 = "images/set_2/"
     path_3 = "images/set_3/"
     DOWNSCALE = 2
-    N_LAYERS = 8
+    N_LAYERS = 4
     percent = 0.000000000001
-    threshold = 80
+    threshold = 20
     images = []
 
-    all_keypoints = []
+    
+    
     all_descriptors = []
-
+    all_keypoints = []
     for i in os.listdir(path_1):
         image_path = path_1 + i
         img = cv2.imread(image_path)
@@ -104,54 +132,41 @@ if __name__ == '__main__':
         kp, des = orb.detectAndCompute(image, None)
         all_keypoints.append(kp)
         all_descriptors.append(des)
-        # for keypoint in keypoints:
-        #     print(type(keypoint.angle))
-        #     #append the response and angle for every keypoint in a file
-        #     with open("keypoints.txt", "a") as f:
-        #         f.write(str(keypoint.angle) + " " + str(keypoint.response) + "\n")
-        
-
-
-        # exit()
         # ###########################
-        gaussian_pyramid = []
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gaussian_pyramid.append(gray)
-        layer = gray
-        octave = 0
-        image_keypoints = ()
-        for i in range(1, N_LAYERS):
-            downscale = cv2.pyrDown(layer)
-            layer = downscale
-            for j in range(i, 0, -1):
-                downscale = cv2.pyrUp(downscale)
-            gaussian_pyramid.append(downscale)
-        for layer in gaussian_pyramid:
-            keypoints_of_layer = fast_detect(layer, threshold)
-            keypoints_of_layer, scores_of_layer = find_harris_corners(layer,100.0,keypoints_of_layer)
-            
-            orientations = corner_orientations(layer,keypoints_of_layer)
-            for i in range(0,len(keypoints_of_layer)):
-                image_keypoints = image_keypoints + (cv2.KeyPoint(
-                    x = float(keypoints_of_layer[i][0]),
-                    y = float(keypoints_of_layer[i][1]),
-                    size = 7,
-                    angle = orientations[i],
-                    response = scores_of_layer[i],
-                    octave = octave,
-                    class_id = -1),)
-            octave += 1
-            layer = cv2.drawKeypoints(layer, image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # cv2.imshow("image", layer)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-        image_keypoints = find_best_keypoints(image_keypoints, 50)
+        # gaussian_pyramid = []
+        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # gaussian_pyramid.append([0,threshold,gray])
+        # layer = gray
+        # image_keypoints = ()
+        # for i in range(1, N_LAYERS):
+        #     downscale = cv2.pyrDown(layer)
+        #     layer = downscale
+        #     for j in range(i, 0, -1):
+        #         downscale = cv2.pyrUp(downscale)
+        #     gaussian_pyramid.append([i, threshold,downscale])
+
+
+        # with concurrent.futures.ProcessPoolExecutor() as executor:
+        #     results = [executor.submit(keypoint_details_processing, gp) for gp in gaussian_pyramid]
+        #     for future in concurrent.futures.as_completed(results):
+        #         for i in range(0,len(future.result()[0])):
+        #             image_keypoints = image_keypoints + (cv2.KeyPoint(
+        #                 x = float(future.result()[0][i][0]),
+        #                 y = float(future.result()[0][i][1]),
+        #                 size = 7,
+        #                 angle = future.result()[2][i],
+        #                 response = future.result()[1][i],
+        #                 octave = future.result()[3],
+        #                 class_id = -1),)
+
         
-        # image_descriptors = brief_descriptor_function(gray, all_keypoints)
-        all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
-        # image_keypoints, descriptors = orb.compute(gray, image_keypoints)
-        all_keypoints.append(image_keypoints)
-        # all_descriptors.append(descriptors)
+        # image_keypoints = find_best_keypoints(image_keypoints, 50)
+        # image = cv2.drawKeypoints(image, image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # cv2.imshow("image", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        # all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
+        # all_keypoints.append(image_keypoints)
     good_matches = match(images[0],images[1],all_keypoints[0],all_keypoints[1], all_descriptors[0],all_descriptors[1])
 
     M = homography_stitching(all_keypoints[0], all_keypoints[1], good_matches, reprojThresh=4)
@@ -159,16 +174,15 @@ if __name__ == '__main__':
     if M is None:
         print("Error!")
 
-    (matches, Homography_Matrix, status) = M
+    (matches, Homography_Matrix, mask) = M
 
     print(Homography_Matrix)
 
 
     width = images[1].shape[1] + images[0].shape[1]
-    print("width ", width) 
-    # 2922 - Which is exactly the sum value of the width of 
-    # my train.jpg and query.jpg
-
+    
+    h, w = images[0].shape[:2]
+    print(h, w)
 
     height = max(images[1].shape[0], images[0].shape[0])
 
@@ -176,18 +190,51 @@ if __name__ == '__main__':
 
     # Now just plug that "Homography_Matrix"  into cv::warpedPerspective and I shall have a warped image1 into image2 frame
 
+    pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w-1, 0]]).reshape(-1,1,2)
+    dst = cv2.perspectiveTransform(pts, Homography_Matrix)
+
+
     result = cv2.warpPerspective(images[1], Homography_Matrix,  (width, height))
-    cv2.imshow("warpPerspective", result)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
-    # The warpPerspective() function returns an image or video whose size is the same as the size of the original image or video. Hence set the pixels as per my query_photo
+    # alpha = 0.5
+    # cv2.imshow("warpPerspective", result)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
+
+    crop_result = trim(result)
     result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]
 
-    cv2.imshow("result", result)
+    temp_result =  result[:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
+    temp_img1 = images[0][:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
+
+    print(images[0].shape[0], crop_result.shape[1] - images[0].shape[1] ,images[0].shape[1])
+    cv2.imshow("croped", temp_img1)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+    
+
+
+    cv2.imshow('sas', dst)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+    result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]
+    
+    cv2.imshow("final", result)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    
+
+
+    # The warpPerspective() function returns an image or video whose size is the same as the size of the original image or video. Hence set the pixels as per my query_photo
+    cv2.imshow("result", trim(result))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    
         
 
 

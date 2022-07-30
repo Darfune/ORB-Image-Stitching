@@ -9,6 +9,7 @@ import math
 np.set_printoptions(threshold=sys.maxsize)
 
 def corner_orientations(img, corners):
+    print("in corner_orientations")
     # mask shape must be odd to have one centre point which is the corner
     OFAST_MASK = np.zeros((31, 31), dtype=np.int32)
     OFAST_UMAX = [15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3]
