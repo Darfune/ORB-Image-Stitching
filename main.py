@@ -128,45 +128,45 @@ if __name__ == '__main__':
     
     for image in images:
         # ###########################
-        orb  = ORB_create()
-        kp, des = orb.detectAndCompute(image, None)
-        all_keypoints.append(kp)
-        all_descriptors.append(des)
+        # orb  = ORB_create()
+        # kp, des = orb.detectAndCompute(image, None)
+        # all_keypoints.append(kp)
+        # all_descriptors.append(des)
         # ###########################
-        # gaussian_pyramid = []
-        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # gaussian_pyramid.append([0,threshold,gray])
-        # layer = gray
-        # image_keypoints = ()
-        # for i in range(1, N_LAYERS):
-        #     downscale = cv2.pyrDown(layer)
-        #     layer = downscale
-        #     for j in range(i, 0, -1):
-        #         downscale = cv2.pyrUp(downscale)
-        #     gaussian_pyramid.append([i, threshold,downscale])
+        gaussian_pyramid = []
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gaussian_pyramid.append([0,threshold,gray])
+        layer = gray
+        image_keypoints = ()
+        for i in range(1, N_LAYERS):
+            downscale = cv2.pyrDown(layer)
+            layer = downscale
+            for j in range(i, 0, -1):
+                downscale = cv2.pyrUp(downscale)
+            gaussian_pyramid.append([i, threshold,downscale])
 
 
-        # with concurrent.futures.ProcessPoolExecutor() as executor:
-        #     results = [executor.submit(keypoint_details_processing, gp) for gp in gaussian_pyramid]
-        #     for future in concurrent.futures.as_completed(results):
-        #         for i in range(0,len(future.result()[0])):
-        #             image_keypoints = image_keypoints + (cv2.KeyPoint(
-        #                 x = float(future.result()[0][i][0]),
-        #                 y = float(future.result()[0][i][1]),
-        #                 size = 7,
-        #                 angle = future.result()[2][i],
-        #                 response = future.result()[1][i],
-        #                 octave = future.result()[3],
-        #                 class_id = -1),)
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            results = [executor.submit(keypoint_details_processing, gp) for gp in gaussian_pyramid]
+            for future in concurrent.futures.as_completed(results):
+                for i in range(0,len(future.result()[0])):
+                    image_keypoints = image_keypoints + (cv2.KeyPoint(
+                        x = float(future.result()[0][i][0]),
+                        y = float(future.result()[0][i][1]),
+                        size = 7,
+                        angle = future.result()[2][i],
+                        response = future.result()[1][i],
+                        octave = future.result()[3],
+                        class_id = -1),)
 
         
-        # image_keypoints = find_best_keypoints(image_keypoints, 50)
-        # image = cv2.drawKeypoints(image, image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # cv2.imshow("image", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        # all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
-        # all_keypoints.append(image_keypoints)
+        image_keypoints = find_best_keypoints(image_keypoints, 50)
+        image = cv2.drawKeypoints(image, image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        cv2.imshow("image", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
+        all_keypoints.append(image_keypoints)
     good_matches = match(images[0],images[1],all_keypoints[0],all_keypoints[1], all_descriptors[0],all_descriptors[1])
 
     M = homography_stitching(all_keypoints[0], all_keypoints[1], good_matches, reprojThresh=4)
