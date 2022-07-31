@@ -77,7 +77,7 @@ def brief_descriptor_function(img, keypoints_object, n=256, patch_size=9, sigma=
 
             if img[kr + spr0, kc + spc0] < img[kr + spr1, kc + spc1]:
                 descriptors[i, p] = 1
-    
+    print(descriptors)
     end_descriptors =  bits_to_bytes(descriptors)
 
     return end_descriptors
@@ -94,4 +94,3 @@ def bits_to_bytes(desc):
         descriptors = descriptors + (descriptor,)
         
     return np.array(descriptors).astype(np.uint8)
-    

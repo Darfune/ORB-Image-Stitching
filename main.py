@@ -111,7 +111,7 @@ if __name__ == '__main__':
     path_2 = "images/set_2/"
     path_3 = "images/set_3/"
     DOWNSCALE = 2
-    N_LAYERS = 4
+    N_LAYERS = 1
     percent = 0.000000000001
     threshold = 20
     images = []
@@ -158,13 +158,11 @@ if __name__ == '__main__':
                         response = future.result()[1][i],
                         octave = future.result()[3],
                         class_id = -1),)
-
-        
         image_keypoints = find_best_keypoints(image_keypoints, 50)
         image = cv2.drawKeypoints(image, image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        cv2.imshow("image", image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("image", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
         all_keypoints.append(image_keypoints)
     good_matches = match(images[0],images[1],all_keypoints[0],all_keypoints[1], all_descriptors[0],all_descriptors[1])
@@ -208,16 +206,7 @@ if __name__ == '__main__':
     temp_result =  result[:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
     temp_img1 = images[0][:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
 
-    print(images[0].shape[0], crop_result.shape[1] - images[0].shape[1] ,images[0].shape[1])
-    cv2.imshow("croped", temp_img1)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
     
-
-
-    cv2.imshow('sas', dst)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
 
     result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]

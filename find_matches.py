@@ -18,7 +18,7 @@ def match(img1, img2, kp1, kp2, des1, des2):
     for m,n in rawMatches:
         # ensure the distance is within a certain ratio of each
         # other (i.e. Lowe's ratio test)
-        if m.distance < n.distance * 0.5:
+        if m.distance < n.distance * 0.75:
             matches.append(m)
     # Draw first 10 matches.
     img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches,None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
