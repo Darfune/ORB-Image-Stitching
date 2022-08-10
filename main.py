@@ -86,7 +86,7 @@ def keypoint_details_processing(pyramid_details):
     keypoints_of_image = fast_detect(image, threshold)
     keypoints_of_image, scores_of_layer = find_harris_corners(image,1000.0,keypoints_of_image)
     orientations = corner_orientations(image,keypoints_of_image)
-    return keypoints_of_image, scores_of_layer, orientations, octave
+    return (keypoints_of_image, scores_of_layer, orientations, octave, image)
 
 
 def trim(frame):
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     path_2 = "images/set_2/"
     path_3 = "images/set_3/"
     DOWNSCALE = 2
-    N_LAYERS = 1
+    N_LAYERS = 4
     percent = 0.000000000001
     threshold = 20
     images = []
@@ -125,10 +125,11 @@ if __name__ == '__main__':
         img = cv2.imread(image_path)
         # img = cv2.cvtColor(img)
         images.append(img)
-    
+    images_details = []
+    pack = []
     for image in images:
         # ###########################
-        # orb  = ORB_create()
+        orb  = ORB_create()
         # kp, des = orb.detectAndCompute(image, None)
         # all_keypoints.append(kp)
         # all_descriptors.append(des)
@@ -137,18 +138,17 @@ if __name__ == '__main__':
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         gaussian_pyramid.append([0,threshold,gray])
         layer = gray
-        image_keypoints = ()
+
         for i in range(1, N_LAYERS):
             downscale = cv2.pyrDown(layer)
             layer = downscale
-            for j in range(i, 0, -1):
-                downscale = cv2.pyrUp(downscale)
             gaussian_pyramid.append([i, threshold,downscale])
 
 
         with concurrent.futures.ProcessPoolExecutor() as executor:
             results = [executor.submit(keypoint_details_processing, gp) for gp in gaussian_pyramid]
             for future in concurrent.futures.as_completed(results):
+                image_keypoints = ()
                 for i in range(0,len(future.result()[0])):
                     image_keypoints = image_keypoints + (cv2.KeyPoint(
                         x = float(future.result()[0][i][0]),
@@ -158,21 +158,29 @@ if __name__ == '__main__':
                         response = future.result()[1][i],
                         octave = future.result()[3],
                         class_id = -1),)
-        image_keypoints = find_best_keypoints(image_keypoints, 50)
-        image = cv2.drawKeypoints(image, image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # cv2.imshow("image", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
-        all_keypoints.append(image_keypoints)
-    good_matches = match(images[0],images[1],all_keypoints[0],all_keypoints[1], all_descriptors[0],all_descriptors[1])
+        # image_keypoints = find_best_keypoints(image_keypoints, 50)
+                # image_with_keypoints = cv2.drawKeypoints(future.result()[4], image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                # cv2.imshow('image', image_with_keypoints)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
+                image_keypoints, des = orb.compute(future.result()[4], image_keypoints)
+                images_details.append([future.result()[4],image_keypoints, des, future.result()[3]])
+        # all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
 
-    M = homography_stitching(all_keypoints[0], all_keypoints[1], good_matches, reprojThresh=4)
+        # all_keypoints.append(image_keypoints)
+        # all_descriptors.append(des)
 
-    if M is None:
-        print("Error!")
+    for image in range(N_LAYERS):
+        good_matches = match(images_details[image][0],images_details[image + N_LAYERS][0],images_details[image][1],images_details[image + N_LAYERS][1], images_details[image][2],images_details[image + N_LAYERS][2])
+        M = homography_stitching(images_details[image][1],images_details[image + N_LAYERS][1], good_matches, reprojThresh=4)
 
-    (matches, Homography_Matrix, mask) = M
+        if M is None:
+            print("Error!")
+            
+        else:
+            (matches, Homography_Matrix, mask) = M
+    
+
 
     print(Homography_Matrix)
 

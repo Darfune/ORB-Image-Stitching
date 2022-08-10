@@ -8,13 +8,17 @@ def N_best_points(harris_corners, fast_keypoints):
     harris_corners.sort(key=sortScore, reverse=True)
     top_N_kps = []
     top_N_scores = []
-
+    harris_corners = harris_corners
     for hr_kp in harris_corners:
-        for fs_kp in fast_keypoints:
-                if hr_kp[0] == fs_kp[0] and hr_kp[1] == fs_kp[1]:
-                    top_N_kps.append(fs_kp)
-                    top_N_scores.append(hr_kp[2])
-                    break
+        if len(top_N_kps) < 50:
+            for fs_kp in fast_keypoints:
+                    if hr_kp[0] == fs_kp[0] and hr_kp[1] == fs_kp[1]:
+                        top_N_kps.append(fs_kp)
+                        top_N_scores.append(hr_kp[2])
+                        fast_keypoints.remove(fs_kp)
+                        break
+        else:
+            break
     print("matched: ", len(top_N_kps))
     return top_N_kps, top_N_scores
 

@@ -3,7 +3,7 @@ import numpy as np
 from harris_score import find_harris_corners
 import cv2
 import time
-def fast_detect(image, thres):
+def fast_detect(image, thres=80):
     print("in fast_detect")
     height, width = image.shape
     keypoints = []
@@ -19,41 +19,43 @@ def fast_detect(image, thres):
             elif image[h-3, w] < image[h, w] - thres: below_thres = below_thres + 1
             if image[h+3, w] > image[h, w] + thres: above_thres = above_thres + 1
             elif image[h+3, w] < image[h, w] - thres: below_thres = below_thres + 1
-            if image[h, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-            elif image[h,w-3] < image[h, w] - thres: below_thres = below_thres + 1
-            if image[h, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-            elif image[h, w+3] > image[h, w] - thres: below_thres = below_thres + 1
-            if above_thres >= 3 :
-                if image[h-3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h-3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h-2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h-2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h-1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h+1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h-1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h+1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h+2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h+2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h+3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
-                if image[h+3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
-                if above_thres >= 9:
-                    keypoints.append((w,h))
-            elif below_thres >= 3 :
-                if image[h-3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h-3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h-2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h-2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h-1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h+1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h-1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h+1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h+2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h+2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h+3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
-                if image[h+3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
-                if below_thres >= 9:
-                    keypoints.append((w, h),)
-
+            if above_thres == 2:
+                if image[h, w-3] > image[h, w] + thres: above_thres = above_thres + 1
+                if image[h, w+3] > image[h, w] + thres: above_thres = above_thres + 1
+                if above_thres >= 3 :
+                    if image[h-3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h-3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h-2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h-2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h-1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h+1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h-1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h+1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h+2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h+2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h+3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
+                    if image[h+3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
+                    if above_thres >= 9:
+                        keypoints.append((w,h))
+            elif below_thres == 2:
+                if image[h, w+3] > image[h, w] - thres: below_thres = below_thres + 1
+                if image[h,w-3] < image[h, w] - thres: below_thres = below_thres + 1
+                if below_thres >= 3 :
+                    if image[h-3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h-3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h-2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h-2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h-1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h+1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h-1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h+1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h+2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h+2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h+3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
+                    if image[h+3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
+                    if below_thres >= 9:
+                        keypoints.append((w, h),)
+    print("features detected:", len(keypoints))
     return keypoints 
 
 def is_corner(image,h,w,thres):
