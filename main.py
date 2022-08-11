@@ -83,7 +83,7 @@ def keypoint_details_processing(pyramid_details):
     threshold = pyramid_details[1]
     image = pyramid_details[2]
     
-    keypoints_of_image = fast_detect(image, threshold)
+    keypoints_of_image = fast_detect(image, threshold, octave)
     keypoints_of_image, scores_of_layer = find_harris_corners(image,1000.0,keypoints_of_image)
     orientations = corner_orientations(image,keypoints_of_image)
     return (keypoints_of_image, scores_of_layer, orientations, octave, image)
@@ -128,6 +128,7 @@ if __name__ == '__main__':
     images_details = []
     pack = []
     for image in images:
+        image_keypoints = ()
         # ###########################
         orb  = ORB_create()
         # kp, des = orb.detectAndCompute(image, None)
@@ -140,88 +141,91 @@ if __name__ == '__main__':
         layer = gray
 
         for i in range(1, N_LAYERS):
-            downscale = cv2.pyrDown(layer)
-            layer = downscale
-            gaussian_pyramid.append([i, threshold,downscale])
+            downscale = layer
+            for j in range(i):
+                downscale = cv2.pyrDown(downscale)
+            for j in range(i):
+                downscale = cv2.pyrUp(downscale)
+            gaussian_pyramid.append([i-1, threshold,downscale])
 
 
         with concurrent.futures.ProcessPoolExecutor() as executor:
             results = [executor.submit(keypoint_details_processing, gp) for gp in gaussian_pyramid]
             for future in concurrent.futures.as_completed(results):
-                image_keypoints = ()
+                
                 for i in range(0,len(future.result()[0])):
                     image_keypoints = image_keypoints + (cv2.KeyPoint(
                         x = float(future.result()[0][i][0]),
                         y = float(future.result()[0][i][1]),
-                        size = 7,
+                        size = 7 * (2**future.result()[3]),
                         angle = future.result()[2][i],
                         response = future.result()[1][i],
                         octave = future.result()[3],
                         class_id = -1),)
         # image_keypoints = find_best_keypoints(image_keypoints, 50)
-                # image_with_keypoints = cv2.drawKeypoints(future.result()[4], image_keypoints, None, color=(0,0,255), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                # cv2.imshow('image', image_with_keypoints)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-                image_keypoints, des = orb.compute(future.result()[4], image_keypoints)
-                images_details.append([future.result()[4],image_keypoints, des, future.result()[3]])
-        # all_descriptors.append(brief_descriptor_function(gray, image_keypoints))
+                image_keypoints, des = orb.compute(gray, image_keypoints)
+                # images_details.append([future.result()[4],image_keypoints, des, future.result()[3]])
+                # all_descriptors.append(brief_descriptor_function(future.result()[4], image_keypoints))
 
-        # all_keypoints.append(image_keypoints)
-        # all_descriptors.append(des)
+                all_keypoints.append(image_keypoints)
+                all_descriptors.append(des)
+                image_with_keypoints = cv2.drawKeypoints(image, image_keypoints, None,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imshow('image', image_with_keypoints)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
-    for image in range(N_LAYERS):
-        good_matches = match(images_details[image][0],images_details[image + N_LAYERS][0],images_details[image][1],images_details[image + N_LAYERS][1], images_details[image][2],images_details[image + N_LAYERS][2])
-        M = homography_stitching(images_details[image][1],images_details[image + N_LAYERS][1], good_matches, reprojThresh=4)
 
-        if M is None:
-            print("Error!")
+    good_matches = match(images[0],images[1],all_keypoints[0],all_keypoints[1],all_descriptors[0],all_descriptors[1])
+    M = homography_stitching(all_keypoints[0], all_keypoints[1], good_matches, reprojThresh=4)
+
+    if M is None:
+        print("Error!")
             
-        else:
-            (matches, Homography_Matrix, mask) = M
+    else:
+        (matches, Homography_Matrix, mask) = M
     
 
 
-    print(Homography_Matrix)
+        print(Homography_Matrix)
 
 
-    width = images[1].shape[1] + images[0].shape[1]
-    
-    h, w = images[0].shape[:2]
-    print(h, w)
+        width = images[1].shape[1] + images[0].shape[1]
+        
+        h, w = images[0].shape[:2]
+        print(h, w)
 
-    height = max(images[1].shape[0], images[0].shape[0])
+        height = max(images[1].shape[0], images[0].shape[0])
 
-    # otherwise, apply a perspective warp to stitch the images together
+        # otherwise, apply a perspective warp to stitch the images together
 
-    # Now just plug that "Homography_Matrix"  into cv::warpedPerspective and I shall have a warped image1 into image2 frame
+        # Now just plug that "Homography_Matrix"  into cv::warpedPerspective and I shall have a warped image1 into image2 frame
 
-    pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w-1, 0]]).reshape(-1,1,2)
-    dst = cv2.perspectiveTransform(pts, Homography_Matrix)
-
-
-    result = cv2.warpPerspective(images[1], Homography_Matrix,  (width, height))
-
-    # alpha = 0.5
-    # cv2.imshow("warpPerspective", result)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+        pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w-1, 0]]).reshape(-1,1,2)
+        dst = cv2.perspectiveTransform(pts, Homography_Matrix)
 
 
-    crop_result = trim(result)
-    result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]
+        result = cv2.warpPerspective(images[1], Homography_Matrix,  (width, height))
 
-    temp_result =  result[:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
-    temp_img1 = images[0][:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
+        # alpha = 0.5
+        # cv2.imshow("warpPerspective", result)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
-    
+
+        crop_result = trim(result)
+        result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]
+
+        temp_result =  result[:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
+        temp_img1 = images[0][:images[0].shape[0], crop_result.shape[1] - images[0].shape[1]:images[0].shape[1]]
+
+        
 
 
-    result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]
-    
-    cv2.imshow("final", result)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        result[0:images[0].shape[0], 0:images[0].shape[1]] = images[0]
+        
+        cv2.imshow("final", result)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     
 
