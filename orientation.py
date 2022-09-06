@@ -27,16 +27,20 @@ def corner_orientations(img, corners):
     # Calculating orientation by the intensity centroid method
     orientations = []
     for i in range(len(corners)):
-        c0, r0 = corners[i]
+        r0, c0 = corners[i].x, corners[i].y
         m01, m10 = 0, 0
         for r in range(mrows):
             m01_temp = 0
             for c in range(mcols):
                 if OFAST_MASK[r,c]:
-                    I = img_pad[r0+r,c0+c]
+                    I = img_pad[c0+c-1,r0+r-1]
                     m10 = m10 + I*(c-mcols2)
+                    m10 = m10 + I*(-3 + c-1)
+                    m01 = m01 + I*(-3 + r-1)
                     m01_temp = m01_temp + I
             m01 = m01 + m01_temp*(r-mrows2)
-        orientations.append(math.atan2(m01,m10)/np.pi*180)
+        corners[i].orientation = np.arctan2(m01,m10)#/np.pi*360 #cv2.fastAtan2(float(m01),float(m10)) #math.atan2(m01,m10)/np.pi*180  
+        # orientations.append(math.atan2(m01,m10)/np.pi*180)
 
-    return np.array(orientations)
+    # return np.array(orientations)
+    return corners

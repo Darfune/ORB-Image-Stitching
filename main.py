@@ -28,6 +28,9 @@ from best_keypoints import find_best_keypoints
 from harris_score import find_harris_corners
 from find_homography import homography_stitching
 import concurrent.futures
+from objects import keypoint
+from pattern import generate_pattern
+
 
 def warp_image(image, homography):
     """Warps 'image' by 'homography'
@@ -84,9 +87,54 @@ def keypoint_details_processing(pyramid_details):
     image = pyramid_details[2]
     
     keypoints_of_image = fast_detect(image, threshold, octave)
-    keypoints_of_image, scores_of_layer = find_harris_corners(image,1000.0,keypoints_of_image)
-    orientations = corner_orientations(image,keypoints_of_image)
-    return (keypoints_of_image, scores_of_layer, orientations, octave, image)
+    keypoints_of_image = find_harris_corners(image,1000.0,keypoints_of_image)
+    
+    keypoints_of_image = corner_orientations(image,keypoints_of_image)
+    print("Finished keypoint detection")
+    return keypoints_of_image
+
+
+def find_keypoints_across_octaves(keypoints, octaves):
+    print("Finding keypoints across octaves")
+    to_return_keypoints = ()
+    for kp_one in keypoints:
+        if kp_one.octave == 0:
+            count = 0
+            kp_family = []
+            best_of_octave = kp_one
+            for kp_two in keypoints:
+                kp_family.append(kp_one)
+                if kp_one.pt == kp_two.pt and kp_one.octave != kp_two.octave and kp_one.angle == kp_two.angle:
+                    kp_family.append(kp_two)
+                    count += 1
+                    if kp_one.response < kp_two.response:
+                        best_of_octave = kp_two
+            if count == octaves:
+                to_return_keypoints += (best_of_octave,)
+                kp_temp = list(keypoints)
+                for kp in kp_family:
+                    kp_temp.remove(kp)
+                kp_family.clear()
+                keypoints = tuple(kp_temp)
+    print("Finished finding keypoints across octaves")
+    return to_return_keypoints
+                
+
+
+def topN_kepoints(keypoints, n):
+    print("Finding top {} keypoints".format(n))
+    size = len(keypoints)
+    keypoints = list(keypoints)
+    for index in range(size):
+        min_index = index
+
+        for j in range(index + 1, size):
+            if keypoints[j].response > keypoints[min_index].response:
+                min_index = j
+
+        keypoints[index], keypoints[min_index] = keypoints[min_index], keypoints[index]
+    print("Finished finding top {} keypoints".format(n))
+    return tuple(keypoints[:n])
 
 
 def trim(frame):
@@ -104,9 +152,11 @@ def trim(frame):
         return trim(frame[:,:-2])
     return frame
 
+
+
 if __name__ == '__main__':
     os.system('clear')
-
+    path_pada = "images/pada_images/"
     path_1 = "images/set_1/"
     path_2 = "images/set_2/"
     path_3 = "images/set_3/"
@@ -116,65 +166,83 @@ if __name__ == '__main__':
     threshold = 20
     images = []
 
-    
+    pattern = generate_pattern()
     
     all_descriptors = []
     all_keypoints = []
-    for i in os.listdir(path_1):
-        image_path = path_1 + i
+    for i in os.listdir(path_pada):
+        image_path = path_pada + i
         img = cv2.imread(image_path)
         # img = cv2.cvtColor(img)
+        # img = cv2.resize(img, (math.floor(img.shape[1]/6),math.floor(img.shape[0]/6)))
         images.append(img)
-    images_details = []
+    keypoints_and_octaves = []
     pack = []
     for image in images:
         image_keypoints = ()
         # ###########################
         orb  = ORB_create()
-        # kp, des = orb.detectAndCompute(image, None)
+        # kp_orb, des = orb.detectAndCompute(image, None)
+        # for k_point in kp_orb:
+        #     print ("angle = {}".format((k_point.angle)))
+        # # exit()
         # all_keypoints.append(kp)
         # all_descriptors.append(des)
-        # ###########################
+        # # ###########################
         gaussian_pyramid = []
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         gaussian_pyramid.append([0,threshold,gray])
         layer = gray
-
         for i in range(1, N_LAYERS):
-            downscale = layer
+            downscale = gray
             for j in range(i):
                 downscale = cv2.pyrDown(downscale)
             for j in range(i):
                 downscale = cv2.pyrUp(downscale)
-            gaussian_pyramid.append([i-1, threshold,downscale])
+            
+            gaussian_pyramid.append([i, threshold,downscale])
 
 
         with concurrent.futures.ProcessPoolExecutor() as executor:
             results = [executor.submit(keypoint_details_processing, gp) for gp in gaussian_pyramid]
             for future in concurrent.futures.as_completed(results):
                 
-                for i in range(0,len(future.result()[0])):
+                
+                for kp in future.result():
+                    
                     image_keypoints = image_keypoints + (cv2.KeyPoint(
-                        x = float(future.result()[0][i][0]),
-                        y = float(future.result()[0][i][1]),
-                        size = 7 * (2**future.result()[3]),
-                        angle = future.result()[2][i],
-                        response = future.result()[1][i],
-                        octave = future.result()[3],
+                        x = float(kp.x),
+                        y = float(kp.y),
+                        size = 7 * (2**kp.octave),
+                        angle = kp.orientation,
+                        response = kp.score,
+                        octave = kp.octave,
                         class_id = -1),)
-        # image_keypoints = find_best_keypoints(image_keypoints, 50)
-                image_keypoints, des = orb.compute(gray, image_keypoints)
-                # images_details.append([future.result()[4],image_keypoints, des, future.result()[3]])
-                # all_descriptors.append(brief_descriptor_function(future.result()[4], image_keypoints))
+                
+                
+        find_keypoints_across_octaves(image_keypoints,N_LAYERS)
+        image_keypoints = topN_kepoints(image_keypoints, 100)
+        image_with_keypoints = cv2.drawKeypoints(image, image_keypoints, None,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # cv2.imshow('image_1', image_with_keypoints)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        # image_keypoints = orb.detect(image)
+        # image_keypoints, des = orb.compute(image, image_keypoints)
+        # better_image_with_keypoints = cv2.drawKeypoints(image, image_keypoints, None,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # cv2.imshow('image_2', better_image_with_keypoints)
+        # cv2.waitKey(0)
+        
+        # for k_p in image_keypoints:
+        #     for kp2 in kp_orb:
+        #         if k_p.pt == kp2.pt:
+        #             print(f"MyORB: {k_p.angle} vs ORB: {kp2.angle}")
+        # exit()
+        all_keypoints.append(image_keypoints)
+        all_descriptors.append(brief_descriptor_function(gray, image_keypoints, pattern = pattern))
+        # all_descriptors.append(des)
+        # ###########################
 
-                all_keypoints.append(image_keypoints)
-                all_descriptors.append(des)
-                image_with_keypoints = cv2.drawKeypoints(image, image_keypoints, None,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imshow('image', image_with_keypoints)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-
+    
     good_matches = match(images[0],images[1],all_keypoints[0],all_keypoints[1],all_descriptors[0],all_descriptors[1])
     M = homography_stitching(all_keypoints[0], all_keypoints[1], good_matches, reprojThresh=4)
 
@@ -200,16 +268,45 @@ if __name__ == '__main__':
 
         # Now just plug that "Homography_Matrix"  into cv::warpedPerspective and I shall have a warped image1 into image2 frame
 
+
+
         pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w-1, 0]]).reshape(-1,1,2)
         dst = cv2.perspectiveTransform(pts, Homography_Matrix)
 
-
+        
         result = cv2.warpPerspective(images[1], Homography_Matrix,  (width, height))
 
+
+        i1x , i1y = images[0].shape[:2]
+        i2x , i2y = result.shape[:2]
+        for i in range(0, i1x):
+            for j in range(0, i1y):
+                try:
+                    if(np.array_equal(images[0][j,i],np.array([0,0,0])) and  \
+                        np.array_equal(result[j,i],np.array([0,0,0]))):
+                        # print "BLACK"
+                        # instead of just putting it with black, 
+                        # take average of all nearby values and avg it.
+                        result[j,i] = [0, 0, 0]
+                    else:
+                        if(np.array_equal(result[j,i],[0,0,0])):
+                            # print "PIXEL"
+                            result[j,i] = images[0][j,i]
+                        else:
+                            if not np.array_equal(images[0][j,i], [0,0,0]):
+                                bl,gl,rl = images[0][j,i]                               
+                                result[j, i] = [bl,gl,rl]
+                except:
+                    pass
+        crop_result = trim(result)
+        cv2.imshow("waRPED mix", crop_result)
+        cv2.waitKey()
+        exit()
+
         # alpha = 0.5
-        # cv2.imshow("warpPerspective", result)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("warpPerspective", result)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
         crop_result = trim(result)

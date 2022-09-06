@@ -4,8 +4,11 @@ from harris_score import find_harris_corners
 import cv2
 import time
 import math
+from objects import keypoint
 
-def fast_detect(image, thres=80, octave = 0):
+
+def fast_detect(image, thres, octave):
+
     print("in fast_detect")
     height, width = image.shape
     keypoints = []
@@ -20,10 +23,19 @@ def fast_detect(image, thres=80, octave = 0):
             max = 32
         case 3:
             max = 64
+        case 4:
+            max = 128
+        case 5:
+            max = 256
+        case 6:
+            max = 512
+        case 7:
+            max = 1024
+        
 
 
-    for h in range(radian,height-radian):
-        for w in range(radian,width-radian):
+    for h in range(radian + 10,height-radian - 10):
+        for w in range(radian + 10,width-radian - 10):
             
             above_thres = 0
             below_thres = 0
@@ -52,7 +64,9 @@ def fast_detect(image, thres=80, octave = 0):
                         if image[h+(radian-i), w-i+1] > image[h, w] + thres: above_thres = above_thres + 1
                         if image[h-(radian-i), w-i+1] > image[h, w] + thres: above_thres = above_thres + 1
                     if above_thres >= max:
-                        keypoints.append((w,h))
+                        kp = keypoint(w,h, octave=octave)
+                        keypoints.append(kp)
+
             elif below_thres == 2:
                 if image[h, w-radian] < image[h, w] - thres: below_thres = below_thres + 1
                 if image[h, w+radian] < image[h, w] - thres: below_thres = below_thres + 1
@@ -71,114 +85,19 @@ def fast_detect(image, thres=80, octave = 0):
                         if image[h-(radian-i), w+i+1] < image[h, w] - thres: below_thres = below_thres + 1
                         if image[h+(radian-i), w-i+1] < image[h, w] - thres: below_thres = below_thres + 1
                         if image[h-(radian-i), w-i+1] < image[h, w] - thres: below_thres = below_thres + 1
+
                     if below_thres >= max:
-                        keypoints.append((w,h))
-    print("features detected:", len(keypoints))
+                        kp = keypoint(w,h, octave= octave)
+                        keypoints.append(kp)
+
+    print(f"Total features detected for layer {octave}: {len(keypoints)}")
+
+    # keypoints = non_max_suppression(keypoints, image, thres, octave)
+
     return keypoints 
 
-
-def is_corner(image,h,w,thres):
-    above_thres = 0
-    below_thres = 0
-    if image[h-3, w] > image[h, w] + thres: above_thres = above_thres + 1
-    elif image[h-3, w] < image[h, w] - thres: below_thres = below_thres + 1
-    if image[h+3, w] > image[h, w] + thres: above_thres = above_thres + 1
-    elif image[h+3, w] < image[h, w] - thres: below_thres = below_thres + 1
-    if image[h, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-    elif image[h,w-3] < image[h, w] - thres: below_thres = below_thres + 1
-    if image[h, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-    elif image[h, w+3] > image[h, w] - thres: below_thres = above_thres + 1
-    if above_thres >= 3 :
-        if image[h-3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h-3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h-2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h-2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h-1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h+1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h-1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h+1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h+2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h+2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h+3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
-        if image[h+3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
-    elif below_thres >= 3 :
-        if image[h-3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h-3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h-2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h-2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h-1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h+1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h-1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h+1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h+2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h+2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h+3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
-        if image[h+3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
-    else: return 0
-    if above_thres >= 9 or below_thres >= 9: return 1
-
-def fast_score(image,h,w,thres):
-    bmin = 0
-    bmah = 255
-    b = (bmah + bmin) / 2
-
-    while True:
-        if is_corner(image,h,w,b):
-            bmin = b
-        else: bmah = b
-
-        if bmin >= bmah -1 or bmin == bmah:
-            return bmin * 0.00001
-        
-        b = (bmah + bmin) / 2
-
-
-
-
-
-    # for h in range(3,height-3):
-    #     for w in range(3,width-3):
-            
-    #         above_thres = 0
-    #         below_thres = 0
-    #         # main 4 corners
-    #         if image[h-3, w] > image[h, w] + thres: above_thres = above_thres + 1
-    #         elif image[h-3, w] < image[h, w] - thres: below_thres = below_thres + 1
-    #         if image[h+3, w] > image[h, w] + thres: above_thres = above_thres + 1
-    #         elif image[h+3, w] < image[h, w] - thres: below_thres = below_thres + 1
-    #         if above_thres == 2:
-    #             if image[h, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-    #             if image[h, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-    #             if above_thres >= 3 :
-    #                 if image[h-3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h-3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h-2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h-2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h-1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h+1, w+3] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h-1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h+1, w-3] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h+2, w+2] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h+2, w-2] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h+3, w+1] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if image[h+3, w-1] > image[h, w] + thres: above_thres = above_thres + 1
-    #                 if above_thres >= 9:
-    #                     keypoints.append((w,h))
-    #         elif below_thres == 2:
-    #             if image[h, w+3] > image[h, w] - thres: below_thres = below_thres + 1
-    #             if image[h,w-3] < image[h, w] - thres: below_thres = below_thres + 1
-    #             if below_thres >= 3 :
-    #                 if image[h-3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h-3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h-2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h-2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h-1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h+1, w+3] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h-1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h+1, w-3] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h+2, w+2] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h+2, w-2] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h+3, w+1] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if image[h+3, w-1] < image[h, w] - thres: below_thres = below_thres + 1
-    #                 if below_thres >= 9:
-    #                     keypoints.append((w, h),)
+# def non_max_suppression(keypoints, image, thres, octave):
+#     print("in non_max_suppression")
+#     for kp in keypoints:
+#         window = 
+#     return keypoints
