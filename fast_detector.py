@@ -34,8 +34,8 @@ def fast_detect(image, thres, octave):
         
 
 
-    for h in range(radian + 10,height-radian - 10):
-        for w in range(radian + 10,width-radian - 10):
+    for h in range(radian + 30,height-radian - 30):
+        for w in range(radian + 30,width-radian - 30):
             
             above_thres = 0
             below_thres = 0

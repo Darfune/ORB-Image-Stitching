@@ -26,16 +26,17 @@ def match(img1, img2, kp1, kp2, des1, des2):
 
 
     matches = bf.match(des1, des2)
-    print(matches)
+    
     # sorted by distance
     matches = sorted(matches, key=lambda x: x.distance)
-    print(matches)
-    img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:15],None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:30],None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
 
 
 
     cv2.imshow('img3',img3)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+    #save image
+    cv2.imwrite('matches.jpg',img3)
     
-    return matches[:15]
+    return matches[:30]

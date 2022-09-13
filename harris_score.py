@@ -14,7 +14,7 @@ def sort(corner_list):
 
         corner_list[index], corner_list[min_index] = corner_list[min_index], corner_list[index]
 
-    return corner_list[:50]
+    return corner_list[:1000]
 
 def find_harris_corners(input_img, threshold, fast_keypoints):
     print("in find_harris_corners")
