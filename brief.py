@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.signal import convolve2d
-from pattern import generate_pattern
 
 
 def brief_descriptor_function(img , keypoints_object, pattern, n=256, mode='uniform'):

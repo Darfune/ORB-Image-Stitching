@@ -1,7 +1,4 @@
-import numpy as np
-from scipy.spatial.distance import cdist
 import cv2
-import matplotlib.pyplot as plt
 
 
 

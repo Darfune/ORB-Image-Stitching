@@ -1,10 +1,5 @@
-from calendar import c
-from re import M
-from time import sleep
 import numpy as np
 import sys
-import cv2
-import math
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -25,7 +20,6 @@ def corner_orientations(img, corners):
     img_pad = np.pad(img, (mrows2, mcols2), mode='constant', constant_values=0)
 
     # Calculating orientation by the intensity centroid method
-    orientations = []
     for i in range(len(corners)):
         r0, c0 = corners[i].x, corners[i].y
         m01, m10 = 0, 0
@@ -40,7 +34,5 @@ def corner_orientations(img, corners):
                     m01_temp = m01_temp + I
             m01 = m01 + m01_temp*(r-mrows2)
         corners[i].orientation = np.arctan2(m01,m10)#/np.pi*360 #cv2.fastAtan2(float(m01),float(m10)) #math.atan2(m01,m10)/np.pi*180  
-        # orientations.append(math.atan2(m01,m10)/np.pi*180)
 
-    # return np.array(orientations)
     return corners

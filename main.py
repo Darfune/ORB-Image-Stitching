@@ -10,7 +10,6 @@ from harris_score import find_harris_corners
 from find_homography import homography_stitching
 import concurrent.futures
 from pattern import generate_pattern
-import math
 
 def sortScore(val):
     return val[2]
@@ -136,18 +135,9 @@ if __name__ == '__main__':
 
         height = max(images[1].shape[0], images[0].shape[0])
 
-        # otherwise, apply a perspective warp to stitch the images together
-
-        # Now just plug that "Homography_Matrix"  into cv::warpedPerspective and I shall have a warped image1 into image2 frame
-
-
-
-        pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w-1, 0]]).reshape(-1,1,2)
-        dst = cv2.perspectiveTransform(pts, Homography_Matrix)
-
-        
         result = cv2.warpPerspective(images[1], Homography_Matrix,  (width, height))
-
+        #save the transformed image
+        cv2.imwrite('transformed.jpg', result)
 
         i1x , i1y = images[0].shape[:2]
         i2x , i2y = result.shape[:2]
@@ -182,12 +172,6 @@ if __name__ == '__main__':
         cv2.imwrite("finished.jpg", crop_result)
         cv2.waitKey()
 
-
-
-    # The warpPerspective() function returns an image or video whose size is the same as the size of the original image or video. Hence set the pixels as per my query_photo
-    # cv2.imshow("result", trim(result))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
     
         

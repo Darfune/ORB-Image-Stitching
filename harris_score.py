@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 from objects import keypoint
 
 def sort(corner_list):
