@@ -48,9 +48,6 @@ def trim(frame):
 if __name__ == '__main__':
     os.system('clear')
     path_pada = "images/pada_images/"
-    path_1 = "images/set_1/"
-    path_2 = "images/set_2/"
-    path_3 = "images/set_3/"
     DOWNSCALE = 2
     N_LAYERS = 4
     threshold = 20
@@ -101,8 +98,6 @@ if __name__ == '__main__':
                         octave = kp.octave,
                         class_id = -1),)
                 
-                
-        # find_keypoints_across_octaves(image_keypoints,N_LAYERS)
         image_keypoints = topN_kepoints(image_keypoints, 300)
         image_with_keypoints = cv2.drawKeypoints(image, image_keypoints, None,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         cv2.imshow('image_1', image_with_keypoints)
@@ -146,13 +141,9 @@ if __name__ == '__main__':
                 try:
                     if(np.array_equal(images[0][j,i],np.array([0,0,0])) and  \
                         np.array_equal(result[j,i],np.array([0,0,0]))):
-                        # print "BLACK"
-                        # instead of just putting it with black, 
-                        # take average of all nearby values and avg it.
                         result[j,i] = [0, 0, 0]
                     else:
                         if(np.array_equal(result[j,i],[0,0,0])):
-                            # print "PIXEL"
                             result[j,i] = images[0][j,i]
                         else:
                             if not np.array_equal(images[0][j,i], [0,0,0]):
@@ -164,7 +155,6 @@ if __name__ == '__main__':
         cv2.imshow("stitched images", result)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        #save the images
         cv2.imwrite("stitched_images.jpg", result)
 
         crop_result = trim(result)
