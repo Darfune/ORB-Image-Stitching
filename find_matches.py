@@ -3,7 +3,7 @@ import cv2
 
 
 
-def match(img1, img2, kp1, kp2, des1, des2):
+def match(img1, img2, kp1, kp2, des1, des2, name, names):
 
     bf = cv2.BFMatcher(cv2.NORM_HAMMING,crossCheck=False)
 
@@ -30,10 +30,10 @@ def match(img1, img2, kp1, kp2, des1, des2):
 
 
 
-    cv2.imshow('img3',img3)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('img3',img3)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     #save image
-    cv2.imwrite('matches.jpg',img3)
+    cv2.imwrite("matches/" + names[name].strip("_2") + '_matches.jpg',img3)
     
     return matches[:30]
